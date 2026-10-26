@@ -1,20 +1,12 @@
 #include <gccore.h>
+#include <ogc/cache.h>
 #include <ogc/system.h>
 #include <ogc/video.h>
 #include <cstdio>
 
-#define noinline __attribute__((noinline))
+#define invalidate(x) do { DCFlushRange(x, sizeof(*x)); ICInvalidateRange(x, sizeof(*x)); } while(0)
 
-noinline
-int it(int in) {
-    return in;
-}
-
-noinline
-int test() {
-    volatile int it2 = it(0x2a);
-    return it2;
-}
+int test();
 
 void init() {
     VIDEO_Init();
@@ -39,16 +31,15 @@ void init() {
 
 void evil() {
     int (*func)() = test;
-    int* pointer = reinterpret_cast<int *>(*func);
-    printf("pointer = %p (%x)\n", pointer+0, pointer[0]);
-    printf("pointer = %p (%x)\n", pointer+1, pointer[1]);
-    printf("pointer = %p (%x)\n", pointer+2, pointer[2]);
-    printf("pointer = %p (%x)\n", pointer+3, pointer[3]);
-
-    short* _0x2aPtr = reinterpret_cast<short *>(pointer) + 7;
-    printf("_0x2aPtr = %p (%x)\n", _0x2aPtr, _0x2aPtr[0]);
+    short* _0x2aPtr = reinterpret_cast<short *>(func) + 3;
     _0x2aPtr[0] = 69;
-    printf("_0x2aPtr = %p (%x)\n", _0x2aPtr, _0x2aPtr[0]);
+
+    invalidate(_0x2aPtr);
+}
+
+int test() {
+    volatile int it2 = 0x2a;
+    return it2;
 }
 
 int main() {
