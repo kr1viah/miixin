@@ -6,14 +6,20 @@
 #define noinline __attribute__((noinline))
 
 noinline
-int test() {
-    return 42;
+int it(int in) {
+    return in;
 }
 
-int main() {
+noinline
+int test() {
+    volatile int it2 = it(0x2a);
+    return it2;
+}
+
+void init() {
     VIDEO_Init();
 
-    auto* mode = VIDEO_GetPreferredMode(nullptr);
+    GXRModeObj *mode = VIDEO_GetPreferredMode(nullptr);
     void* framebuffer = MEM_K0_TO_K1(
         SYS_AllocateFramebuffer(mode)
     );
@@ -29,8 +35,27 @@ int main() {
     VIDEO_SetBlack(FALSE);
     VIDEO_Flush();
     VIDEO_WaitVSync();
+}
 
-    printf("Hello, world!\n");
+void evil() {
+    int (*func)() = test;
+    int* pointer = reinterpret_cast<int *>(*func);
+    printf("pointer = %p (%x)\n", pointer+0, pointer[0]);
+    printf("pointer = %p (%x)\n", pointer+1, pointer[1]);
+    printf("pointer = %p (%x)\n", pointer+2, pointer[2]);
+    printf("pointer = %p (%x)\n", pointer+3, pointer[3]);
+
+    short* _0x2aPtr = reinterpret_cast<short *>(pointer) + 7;
+    printf("_0x2aPtr = %p (%x)\n", _0x2aPtr, _0x2aPtr[0]);
+    _0x2aPtr[0] = 69;
+    printf("_0x2aPtr = %p (%x)\n", _0x2aPtr, _0x2aPtr[0]);
+}
+
+int main() {
+    init();
+
+    printf("test() = %d\n", test());
+    evil();
     printf("test() = %d\n", test());
 
     while (true)
