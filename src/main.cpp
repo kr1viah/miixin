@@ -3,6 +3,7 @@
 #include <ogc/system.h>
 #include <ogc/video.h>
 #include <cstdio>
+#include "evil.cpp"
 
 #define invalidate(x) do { DCFlushRange(x, sizeof(*x)); ICInvalidateRange(x, sizeof(*x)); } while(0)
 
@@ -47,6 +48,7 @@ int main() {
 
     printf("test() = %d\n", test());
     evil();
+    kr1v::evil();
     printf("test() = %d\n", test());
 
     while (true)
