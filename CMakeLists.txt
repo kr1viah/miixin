@@ -8,6 +8,23 @@ add_executable(dwarf-wii
         src/main.cpp
 )
 
+# evil cross compiling (its bad)
+set(BUILD_MMAP OFF CACHE BOOL "" FORCE)
+set(ENABLE_DECOMPRESSION OFF CACHE BOOL "" FORCE)
+set(BUILD_DWARFDUMP OFF CACHE BOOL "" FORCE)
+set(BUILD_DWARFGEN OFF CACHE BOOL "" FORCE)
+set(BUILD_DWARFEXAMPLE OFF CACHE BOOL "" FORCE)
+set(DO_TESTING OFF CACHE BOOL "" FORCE)
+
+add_subdirectory(third_party/libdwarf EXCLUDE_FROM_ALL)
+
+set_target_properties(dwarf-shared PROPERTIES
+        OUTPUT_NAME "dwarf-shared-wii"
+)
+
+target_link_libraries(dwarf-wii PRIVATE dwarf-static)
+# end of evil cross compiling
+
 set_source_files_properties(
         src/dwarf.cpp
         src/evil.cpp

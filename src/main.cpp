@@ -44,13 +44,17 @@ int test() {
 }
 
 int main() {
-    init();
+    try {
+        init();
 
-    printf("test() = %d\n", test());
-    evil();
-    kr1v::evil();
-    printf("test() = %d\n", test());
+        printf("test() = %d\n", test());
+        evil();
+        kr1v::evil();
+        printf("test() = %d\n", test());
 
-    while (true)
-        VIDEO_WaitVSync();
+        while (true)
+            VIDEO_WaitVSync();
+    } catch (error_t e) {
+        printf("error: %d", e);
+    }
 }
