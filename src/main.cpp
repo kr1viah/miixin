@@ -30,31 +30,17 @@ void init() {
     VIDEO_WaitVSync();
 }
 
-void evil() {
-    int (*func)() = test;
-    short* _0x2aPtr = reinterpret_cast<short *>(func) + 3;
-    _0x2aPtr[0] = 69;
-
-    invalidate(_0x2aPtr);
-}
-
 int test() {
     volatile int it2 = 0x2a;
     return it2;
 }
 
 int main() {
-    try {
-        init();
+    init();
+    kr1v::evil();
 
-        printf("test() = %d\n", test());
-        evil();
-        kr1v::evil();
-        printf("test() = %d\n", test());
+    printf("test() = %d\n", test());
 
-        while (true)
-            VIDEO_WaitVSync();
-    } catch (error_t e) {
-        printf("error: %d", e);
-    }
+    while (true)
+        VIDEO_WaitVSync();
 }

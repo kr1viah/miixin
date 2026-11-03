@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dwarf.cpp"
+#include "dwarf.h"
 
 namespace kr1v {
     void evil() {

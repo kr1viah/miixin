@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(dwarf-wii
         src/main.cpp
+        src/dwarf.cpp
+        src/dwarf.h
 )
 
 # evil cross compiling (its bad)
@@ -26,13 +28,11 @@ target_link_libraries(dwarf-wii PRIVATE dwarf-static)
 # end of evil cross compiling
 
 set_source_files_properties(
-        src/dwarf.cpp
         src/evil.cpp
         PROPERTIES HEADER_FILE_ONLY TRUE
 )
 
 target_sources(dwarf-wii PRIVATE
-        src/dwarf.cpp
         src/evil.cpp
 )
 

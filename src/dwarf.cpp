@@ -8,20 +8,13 @@
 #include <map>
 #include "../lib/dwarf.h"
 #include "../lib/libdwarf.h"
+#include "dwarf.h"
 
 namespace kr1v {
     void evil();
 }
 
 namespace kr1v::dwarf {
-    struct function {
-        std::string name;
-        std::string mangled;
-        std::string namespace_;
-        unsigned long startAddr = 0;
-        unsigned long size = 0;
-    };
-
     bool isScopeTag(Dwarf_Half tag) {
         return tag == DW_TAG_namespace
             || tag == DW_TAG_class_type
@@ -30,24 +23,35 @@ namespace kr1v::dwarf {
     }
 
     const char* dwarf_path = "sd:/dwarf/main.dwarf";
+
+    struct function_info {
+        std::string name;
+        std::string mangled;
+        std::string namespace_;
+    };
+
+    struct pending_function {
+        function implementation;
+        Dwarf_Off referenceOffset = 0;
+        bool hasReference = false;
+    };
+
+    std::map<Dwarf_Off, function_info> subprogramInfoByOffset;
+    std::vector<pending_function> pendingFunctions;
+
     std::vector<function> functions;
     std::map<unsigned long, function> addr2funcMap;
 
-    const char* getMangled(Dwarf_Die die, Dwarf_Error* error) {
+    std::string getMangled(Dwarf_Die die, Dwarf_Error* error) {
         Dwarf_Attribute attr = nullptr;
 
-        int result = dwarf_attr(
-            die, DW_AT_linkage_name, &attr, error
-        );
-
+        int result = dwarf_attr(die, DW_AT_linkage_name, &attr, error);
         if (result == DW_DLV_NO_ENTRY) {
-            result = dwarf_attr(
-                die, DW_AT_MIPS_linkage_name, &attr, error
-            );
+            result = dwarf_attr(die, DW_AT_MIPS_linkage_name, &attr, error);
         }
 
         if (result != DW_DLV_OK) {
-            return nullptr;
+            return "";
         }
 
         char* name = nullptr;
@@ -55,7 +59,98 @@ namespace kr1v::dwarf {
 
         dwarf_dealloc_attribute(attr);
 
-        return result == DW_DLV_OK ? name : nullptr;
+        return result == DW_DLV_OK ? name : "";
+    }
+
+    std::string getNamespace(const std::vector<std::string>& scopes) {
+        std::string result;
+
+        for (const std::string& scope : scopes) {
+            if (!result.empty()) {
+                result += "::";
+            }
+
+            result += scope;
+        }
+
+        return result;
+    }
+
+    bool getReferenceOffset(Dwarf_Die die, Dwarf_Half attribute, Dwarf_Off& offset, Dwarf_Error* error) {
+        Dwarf_Attribute attr = nullptr;
+
+        int result = dwarf_attr(die, attribute, &attr, error);
+
+        if (result != DW_DLV_OK) {
+            return false;
+        }
+
+        Dwarf_Bool isInfo = false;
+
+        result = dwarf_global_formref_b(attr,  &offset, &isInfo, error);
+
+        dwarf_dealloc_attribute(attr);
+
+        return result == DW_DLV_OK && isInfo;
+    }
+
+    bool hasAttr(Dwarf_Die die, Dwarf_Half attrCode, Dwarf_Error* error) {
+        Dwarf_Attribute attr = nullptr;
+        int result = dwarf_attr(die, attrCode, &attr, error);
+
+        if (result == DW_DLV_OK) {
+            dwarf_dealloc_attribute(attr);
+            return true;
+        }
+
+        return false;
+    }
+
+    void inspectFunction(Dwarf_Die die, std::vector<std::string> &scopes, Dwarf_Error *error) {
+        function func;
+        char* name = nullptr;
+        if (dwarf_diename(die, &name, error) == DW_DLV_OK) {
+            func.name = name;
+        }
+
+        func.namespace_ = getNamespace(scopes);
+        func.mangled = getMangled(die, error);
+
+        if (!func.name.empty()) {
+            Dwarf_Off dieOffset = 0;
+
+            if (dwarf_dieoffset(die, &dieOffset, error) == DW_DLV_OK) {
+                subprogramInfoByOffset[dieOffset] = { func.name, func.mangled, func.namespace_ };
+            }
+        }
+
+        Dwarf_Addr startAddress = 0;
+        Dwarf_Addr highAddress = 0;
+        Dwarf_Half highPcForm = 0;
+        Dwarf_Form_Class highPcClass = DW_FORM_CLASS_UNKNOWN;
+
+        if (dwarf_lowpc(die, &startAddress, error) != DW_DLV_OK) return;
+        if (dwarf_highpc_b(die, &highAddress, &highPcForm, &highPcClass, error) != DW_DLV_OK) return;
+
+        func.startAddr = static_cast<unsigned long>(startAddress);
+
+        if (highPcClass == DW_FORM_CLASS_CONSTANT) {
+            func.size = static_cast<unsigned long>(highAddress);
+        } else if (highPcClass == DW_FORM_CLASS_ADDRESS) {
+            func.size = static_cast<unsigned long>(highAddress - startAddress);
+        } else {
+            return; // glup
+        }
+
+        Dwarf_Off referenceOffset = 0;
+
+        bool hasReference = getReferenceOffset(die, DW_AT_specification, referenceOffset, error);
+
+        if (!hasReference) {
+            hasReference = getReferenceOffset(die, DW_AT_abstract_origin,referenceOffset, error);
+        }
+
+        pendingFunctions.push_back({func, referenceOffset, hasReference });
     }
 
     void inspectDie(Dwarf_Debug dbg, Dwarf_Die die, std::vector<std::string>& scopes, Dwarf_Error* error) {
@@ -64,8 +159,6 @@ namespace kr1v::dwarf {
 	    if (dwarf_tag(die, &tag, error) != DW_DLV_OK) {
 		    return;
 	    }
-
-
 
         bool pushedScope = false;
 
@@ -79,47 +172,12 @@ namespace kr1v::dwarf {
         }
 
         if (tag == DW_TAG_subprogram) {
-            char* name = nullptr;
-            Dwarf_Addr startAddress = 0;
-            Dwarf_Addr endAddress = 0;
-
-            int err = dwarf_diename(die, &name, error);
-            if (err != DW_DLV_OK) goto it;
-            err = dwarf_lowpc(die, &startAddress, error);
-            if (err != DW_DLV_OK) goto it;
-            err = dwarf_highpc_b(die, &endAddress, nullptr, nullptr, error);
-            if (err != DW_DLV_OK) goto it;
-            const char* mangled = getMangled(die, error);
-            std::string namespace_;
-
-            for (const std::string& scope : scopes) {
-                if (!namespace_.empty()) {
-                    namespace_ += "::";
-                }
-
-                namespace_ += scope;
-            }
-
-            printf("%s", namespace_.c_str());
-
-            function func = {
-                .name = name,
-                .mangled = mangled == nullptr ? "" : mangled,
-                .namespace_ = namespace_,
-                .startAddr = static_cast<unsigned long>(startAddress),
-                .size = static_cast<unsigned long>(endAddress) // why is it named end address when its the size
-            };
-            functions.push_back(func);
-            addr2funcMap[startAddress] = func;
-
-            dwarf_dealloc(dbg, name, DW_DLA_STRING);
+            inspectFunction(die, scopes, error);
         }
-    it:
 
         Dwarf_Die child = nullptr;
 
-        int childErr = dwarf_child(die, &child, error);
-        if (childErr != DW_DLV_OK) {
+        if (int childErr = dwarf_child(die, &child, error); childErr != DW_DLV_OK) {
             if (childErr != DW_DLV_NO_ENTRY) {
                 printf("child not ok: %d\n", childErr);
             }
@@ -209,6 +267,27 @@ namespace kr1v::dwarf {
             dwarf_dealloc_die(cuDie);
         }
 
+        for (const pending_function& pending : pendingFunctions) {
+            function func = pending.implementation;
+
+            if (pending.hasReference) {
+                auto it = subprogramInfoByOffset.find(pending.referenceOffset);
+
+                if (it != subprogramInfoByOffset.end()) {
+                    func.name = it->second.name;
+                    func.mangled = it->second.mangled;
+                    func.namespace_ = it->second.namespace_;
+                }
+            }
+
+            if (func.name.empty()) {
+                continue;
+            }
+
+            functions.push_back(func);
+            addr2funcMap[func.startAddr] = func;
+        }
+
         dwarf_finish(dbg);
 
         return true;
@@ -220,20 +299,38 @@ namespace kr1v::dwarf {
                 return func;
             }
         }
-        return {};
+        return EMPTY_FUNC;
     }
 
-    function getFunctionByName(std::string namespace_, std::string name) {
-        for (function func : functions) {
-            if (func.name == name) {
-                return func;
+    std::vector<function> getFunctionByName(std::string namespace_name) {
+        std::vector<function> funcs;
+
+        for (const function& func : functions) {
+            if (func.name + func.namespace_ == namespace_name) {
+                funcs.push_back(func);
             }
         }
 
-        return {};
+        return funcs;
     }
 
-    bool doTheThing() {
+    std::vector<function> getFunctionByName(std::string namespace_, std::string name) {
+        std::vector<function> funcs;
+        for (function func : functions) {
+            if (func.name == name && func.namespace_ == namespace_) {
+                funcs.push_back(func);
+            }
+        }
+
+        return funcs;
+    }
+
+    bool applyPatches() {
+        function test = getFunctionByName("test")[0];
+
+        auto* start = reinterpret_cast<short *>(test.startPointer());
+        start[3] = 69;
+
         return true;
     }
 
@@ -243,7 +340,7 @@ namespace kr1v::dwarf {
             return;
         }
 
-        if (!doTheThing()) {
+        if (!applyPatches()) {
             printf("Patches and injects not applied correctly. Proceed with caution!");
 
             // todo: maybe save a flag for next launch to not launch with patches
@@ -251,19 +348,13 @@ namespace kr1v::dwarf {
 
 #define printfunc(func) printf("namespace: %s, name: %s\n\tstart: %lx, size: %lx mangled: %s\n", func.namespace_.c_str(), func.name.c_str(), func.startAddr, func.size, func.mangled.c_str())
 
-        function func = getFunctionByName("kr1v", "evil");
+        function func = getFunctionByName("kr1v", "evil")[0];
         printfunc(func);
 
         func = getFunctionByMangled("_Z4evilv");
         printfunc(func);
 
-        func = getFunctionByName("kr1v::dwarf", "readDebugInfo");
-        printfunc(func);
-        printf("%p\n", evil);
-
-        unsigned long addr = reinterpret_cast<unsigned long>(readDebugInfo);
-        func = addr2funcMap[addr];
-        printf("%lx\n", addr);
+        func = getFunctionByName("kr1v::dwarf", "readDebugInfo")[0];
         printfunc(func);
     }
 }
