@@ -1,5 +1,3 @@
-#pragma once
-
 #include <string>
 
 #include <fat.h>
@@ -9,6 +7,8 @@
 #include "../lib/dwarf.h"
 #include "../lib/libdwarf.h"
 #include "dwarf.h"
+
+#include <ogc/ipc.h>
 
 namespace kr1v {
     void evil();
@@ -208,13 +208,13 @@ namespace kr1v::dwarf {
         }
     }
 
-    bool readDwarf() {
+    bool readDwarf(const char* path) {
         fatInitDefault();
 
         Dwarf_Debug dbg = nullptr;
         Dwarf_Error error = nullptr;
 
-        int result = dwarf_init_path(dwarf_path, nullptr, 0, DW_GROUPNUMBER_ANY, nullptr, nullptr, &dbg, &error);
+        int result = dwarf_init_path(path, nullptr, 0, DW_GROUPNUMBER_ANY, nullptr, nullptr, &dbg, &error);
 
         if (result != DW_DLV_OK) {
             printf("Failed to open DWARF file: %s\n",
@@ -334,16 +334,31 @@ namespace kr1v::dwarf {
         return true;
     }
 
+    bool findPlugins() {
+        int fd = IOS_Open("file", 0);
+        void* bufferIn = malloc(0x1000);
+        void* bufferOut = malloc(0x1000);
+        int ret = IOS_Ioctl(fd, 0x37, bufferIn, 0x1000, bufferOut, 0x1000);
+
+
+        free(bufferIn);
+        free(bufferOut);
+        return true;
+    }
+
     void readDebugInfo() {
-        if (!readDwarf()) {
+        if (!readDwarf(dwarf_path)) {
             printf("DWARF failed to read, aborting.");
             return;
         }
 
-        if (!applyPatches()) {
-            printf("Patches and injects not applied correctly. Proceed with caution!");
+        if (!findPlugins()) {
+            printf("Plugins not found correctly");
+        }
 
+        if (!applyPatches()) {
             // todo: maybe save a flag for next launch to not launch with patches
+            printf("Patches and injects not applied correctly. Proceed with caution!");
         }
 
 #define printfunc(func) printf("namespace: %s, name: %s\n\tstart: %lx, size: %lx mangled: %s\n", func.namespace_.c_str(), func.name.c_str(), func.startAddr, func.size, func.mangled.c_str())

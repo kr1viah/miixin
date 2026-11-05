@@ -1,6 +1,6 @@
 #pragma once
-#import <string>
-#import <vector>
+#include <string>
+#include <vector>
 
 namespace kr1v::dwarf {
     struct function {

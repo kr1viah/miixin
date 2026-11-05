@@ -8,6 +8,11 @@ add_executable(dwarf-wii
         src/main.cpp
         src/dwarf.cpp
         src/dwarf.h
+        src/mixin.h
+)
+
+add_executable(plugin
+        plugin/main.cpp
 )
 
 # evil cross compiling (its bad)
@@ -43,6 +48,15 @@ target_compile_options(dwarf-wii PRIVATE
         -gdwarf-4
 )
 
+target_compile_options(plugin PRIVATE
+        -g
+        -gdwarf-4
+)
+
+target_link_options(plugin PRIVATE
+        -Wl,--no-gc-sections
+)
+
 find_program(ELF2DOL_EXECUTABLE
         NAMES elf2dol
         HINTS "$ENV{DEVKITPRO}/tools/bin"
@@ -70,6 +84,16 @@ add_custom_command(TARGET dwarf-wii POST_BUILD
         "$<TARGET_FILE:dwarf-wii>"
         "${DOLPHIN_SD_SYNC_DIR}/dwarf/main.dwarf"
         COMMENT "Copying DWARF to Dolphin SD"
+        VERBATIM
+)
+
+add_custom_command(TARGET dwarf-wii POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory
+        "${DOLPHIN_SD_SYNC_DIR}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+        "$<TARGET_FILE:plugin>"
+        "${DOLPHIN_SD_SYNC_DIR}/plugins/plugin.elf"
+        COMMENT "Copying test plugin to Dolphin SD"
         VERBATIM
 )
 
