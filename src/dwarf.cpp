@@ -4,15 +4,11 @@
 #include <fstream>
 #include <vector>
 #include <map>
-#include <dirent.h>
-#include <ogc/ipc.h>
 #include "../lib/dwarf.h"
 #include "../lib/libdwarf.h"
 #include "dwarf.h"
 
 #include <cstring>
-#include <sys/types.h>
-#include <sys/stat.h>
 
 namespace kr1v {
     void evil();
@@ -329,58 +325,45 @@ namespace kr1v::dwarf {
     }
 
     bool applyPatches() {
-        function test = getFunctionByName("test")[0];
+        // function test = getFunctionByName("test")[0];
 
-        auto* start = reinterpret_cast<short *>(test.startPointer());
-        start[3] = 69;
-
-        return true;
-    }
-
-    bool findPlugins() {
-        DIR* pdir = opendir("./plugins");
-        if (!pdir) return false;
-
-        dirent* pent;
-        struct stat* statbuf = nullptr;
-        while ((pent=readdir(pdir)) != nullptr) {
-            stat(pent->d_name, statbuf);
-            if (strcmp(".", pent->d_name) == 0 || strcmp("..", pent->d_name) == 0)
-                continue;
-            if (S_ISDIR(statbuf->st_mode))
-                printf("%s <dir>\n", pent->d_name);
-            if (!(S_ISDIR(statbuf->st_mode)))
-                printf("%s %lld\n", pent->d_name, statbuf->st_size);
-        }
-        closedir(pdir);
+        // auto* start = reinterpret_cast<short *>(test.startPointer());
+        // start[3] = 69;
 
         return true;
     }
 
-    void readDebugInfo() {
-        if (!readDwarf(dwarf_path)) {
-            printf("DWARF failed to read, aborting.");
-            return;
-        }
+    // todo: plugin discovery
+    // bool findPlugins() {
+    //     DIR* pdir = opendir("./plugins");
+    //     if (!pdir) return false;
+    //
+    //     dirent* pent;
+    //     struct stat* statbuf = nullptr;
+    //     while ((pent=readdir(pdir)) != nullptr) {
+    //         stat(pent->d_name, statbuf);
+    //         if (strcmp(".", pent->d_name) == 0 || strcmp("..", pent->d_name) == 0)
+    //             continue;
+    //         if (S_ISDIR(statbuf->st_mode))
+    //             printf("%s <dir>\n", pent->d_name);
+    //         if (!(S_ISDIR(statbuf->st_mode)))
+    //             printf("%s %lld\n", pent->d_name, statbuf->st_size);
+    //     }
+    //     closedir(pdir);
+    //
+    //     return true;
+    // }
 
-        if (!findPlugins()) {
-            printf("Plugins not found correctly");
-        }
+    bool readDebugInfo() {
+        return readDwarf(dwarf_path);
 
-        if (!applyPatches()) {
-            // todo: maybe save a flag for next launch to not launch with patches
-            printf("Patches and injects not applied correctly. Proceed with caution!");
-        }
+        // if (!findPlugins()) {
+        //     printf("Plugins not found correctly");
+        // }
 
-#define printfunc(func) printf("namespace: %s, name: %s\n\tstart: %lx, size: %lx mangled: %s\n", func.namespace_.c_str(), func.name.c_str(), func.startAddr, func.size, func.mangled.c_str())
-
-        function func = getFunctionByName("kr1v", "evil")[0];
-        printfunc(func);
-
-        func = getFunctionByMangled("_Z4evilv");
-        printfunc(func);
-
-        func = getFunctionByName("kr1v::dwarf", "readDebugInfo")[0];
-        printfunc(func);
+        // if (!applyPatches()) {
+        //     // todo: maybe save a flag for next launch to not launch with patches
+        //     printf("Patches and injects not applied correctly. Proceed with caution!");
+        // }
     }
 }

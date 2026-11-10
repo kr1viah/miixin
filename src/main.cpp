@@ -31,8 +31,13 @@ void init() {
 }
 
 int test() {
-    volatile int it2 = 0x2a;
+    volatile int it2 = 0xffffff;
     return it2;
+}
+
+int test2() {
+    volatile int it = test();
+    return it;
 }
 
 int main() {
@@ -44,3 +49,6 @@ int main() {
     while (SYS_MainLoop())
         VIDEO_WaitVSync();
 }
+
+#define KR1V
+#include "../plugin/main.cpp"

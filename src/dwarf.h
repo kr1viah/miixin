@@ -8,10 +8,14 @@ namespace kr1v::dwarf {
         std::string mangled;
         std::string namespace_;
         unsigned long startAddr = 0;
-        unsigned long size = 0;
+        unsigned long size = 0; // size in bytes
 
         int* startPointer() {
             return reinterpret_cast<int*>(startAddr);
+        }
+
+        int* startPointer(int offset) {
+            return reinterpret_cast<int*>(startAddr + offset);
         }
     };
 
@@ -22,5 +26,5 @@ namespace kr1v::dwarf {
     std::vector<function> getFunctionByName(std::string namespace_name);
     std::vector<function> getFunctionByName(std::string namespace_, std::string name);
 
-    void readDebugInfo();
+    bool readDebugInfo();
 }

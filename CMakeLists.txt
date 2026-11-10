@@ -9,6 +9,8 @@ add_executable(dwarf-wii
         src/dwarf.cpp
         src/dwarf.h
         src/mixin.h
+        src/patch.cpp
+        src/patch.h
 )
 
 add_executable(plugin
@@ -103,6 +105,7 @@ add_custom_target(run-dolphin
         COMMAND "${FLATPAK_EXECUTABLE}" run
         org.DolphinEmu.dolphin-emu
         "--exec=${DOL_FILE}"
+        "-d"
         DEPENDS dwarf-wii
         USES_TERMINAL
         VERBATIM
