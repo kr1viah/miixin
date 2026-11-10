@@ -41,6 +41,6 @@ int main() {
 
     printf("test() = %d\n", test());
 
-    while (true)
+    while (SYS_MainLoop())
         VIDEO_WaitVSync();
 }

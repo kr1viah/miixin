@@ -4,11 +4,15 @@
 #include <fstream>
 #include <vector>
 #include <map>
+#include <dirent.h>
+#include <ogc/ipc.h>
 #include "../lib/dwarf.h"
 #include "../lib/libdwarf.h"
 #include "dwarf.h"
 
-#include <ogc/ipc.h>
+#include <cstring>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 namespace kr1v {
     void evil();
@@ -217,8 +221,7 @@ namespace kr1v::dwarf {
         int result = dwarf_init_path(path, nullptr, 0, DW_GROUPNUMBER_ANY, nullptr, nullptr, &dbg, &error);
 
         if (result != DW_DLV_OK) {
-            printf("Failed to open DWARF file: %s\n",
-                error ? dwarf_errmsg(error) : "No DWARF data found");
+            printf("oops");
 
             if (error) {
                 dwarf_dealloc_error(dbg, error);
@@ -335,14 +338,22 @@ namespace kr1v::dwarf {
     }
 
     bool findPlugins() {
-        int fd = IOS_Open("file", 0);
-        void* bufferIn = malloc(0x1000);
-        void* bufferOut = malloc(0x1000);
-        int ret = IOS_Ioctl(fd, 0x37, bufferIn, 0x1000, bufferOut, 0x1000);
+        DIR* pdir = opendir("./plugins");
+        if (!pdir) return false;
 
+        dirent* pent;
+        struct stat* statbuf = nullptr;
+        while ((pent=readdir(pdir)) != nullptr) {
+            stat(pent->d_name, statbuf);
+            if (strcmp(".", pent->d_name) == 0 || strcmp("..", pent->d_name) == 0)
+                continue;
+            if (S_ISDIR(statbuf->st_mode))
+                printf("%s <dir>\n", pent->d_name);
+            if (!(S_ISDIR(statbuf->st_mode)))
+                printf("%s %lld\n", pent->d_name, statbuf->st_size);
+        }
+        closedir(pdir);
 
-        free(bufferIn);
-        free(bufferOut);
         return true;
     }
 
