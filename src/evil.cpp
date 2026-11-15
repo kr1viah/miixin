@@ -4,10 +4,6 @@
 #include "patch.h"
 
 namespace kr1v {
-    namespace patch {
-        void transform(std::vector<int>* in);
-    }
-
     void evil() {
         if (!dwarf::readDebugInfo()) {
             printf("DWARF failed to read, aborting.");

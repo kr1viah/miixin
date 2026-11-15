@@ -10,12 +10,12 @@ namespace kr1v::dwarf {
         unsigned long startAddr = 0;
         unsigned long size = 0; // size in bytes
 
-        int* startPointer() {
-            return reinterpret_cast<int*>(startAddr);
+        unsigned int* startPointer() {
+            return reinterpret_cast<unsigned int*>(startAddr);
         }
 
-        int* startPointer(int offset) {
-            return reinterpret_cast<int*>(startAddr + offset);
+        unsigned int* startPointer(int offset) {
+            return reinterpret_cast<unsigned int*>(startAddr + offset);
         }
     };
 
