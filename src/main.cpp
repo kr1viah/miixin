@@ -35,6 +35,12 @@ int test() {
     return it2;
 }
 
+__attribute__((used, retain))
+int redirect() {
+    volatile int i = 6969;
+    return i;
+}
+
 int test2() {
     volatile int it = test();
     return it;
@@ -44,7 +50,8 @@ int main() {
     init();
     kr1v::evil();
 
-    printf("test() = %d\n", test());
+    // magic
+    printf("test2() = %d, %x\n", test2(), test2());
 
     while (SYS_MainLoop())
         VIDEO_WaitVSync();

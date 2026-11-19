@@ -313,6 +313,15 @@ namespace kr1v::dwarf {
         return funcs;
     }
 
+    function getFunctionByAddress(unsigned long address) {
+        for (function func : functions) {
+            if (func.startAddr == address) {
+                return func;
+            }
+        }
+        return EMPTY_FUNC;
+    }
+
     std::vector<function> getFunctionByName(std::string namespace_, std::string name) {
         std::vector<function> funcs;
         for (function func : functions) {

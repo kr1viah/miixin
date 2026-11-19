@@ -41,10 +41,10 @@ namespace kr1v::patch {
         void instructionsToRaw(unsigned long startAddr, std::vector<unsigned int>* output, std::vector<instruction>* instructions) {
             output->clear();
             for (int i = 0; i < instructions->size(); i++) {
-                instruction ins = (*instructions)[i];
+                instruction& ins = instructions->at(i);
                 if (ins.type == INSTRUCTION_bl) {
-                    unsigned int LI = (unsigned int)((long)ins.whereDoesItJumpTo - startAddr+i*4) >> 2;
-                    unsigned int bl = 18 << 26 | LI << 2 | 0b01;
+                    unsigned int LI = ((unsigned int)((long)ins.whereDoesItJumpTo - (startAddr + i * 4)) >> 2) & 0b00000000111111111111111111111111;
+                    unsigned int bl = 18 << 26 | (LI << 2) | 0b01;
                     output->push_back(bl);
                 } else {
                     output->push_back(ins.raw);
@@ -54,8 +54,12 @@ namespace kr1v::patch {
     }
 
     void transform(std::vector<data::instruction>* in) {
-        // in->at(1).raw = INS_lis_r9 | 0;
-        // in->at(2).raw = INS_ori_r9_r9 | 69;
+        for (data::instruction& i : *in) {
+            if (i.type == INSTRUCTION_bl) {
+                dwarf::function f = dwarf::getFunctionByName("redirect")[0];
+                i.whereDoesItJumpTo = f.startAddr;
+            }
+        }
     }
 
     bool doIt(dwarf::function function) {

@@ -9,7 +9,7 @@ namespace kr1v {
             printf("DWARF failed to read, aborting.");
             return;
         }
-        patch::doIt(dwarf::getFunctionByName("test")[0]);
+        patch::doIt(dwarf::getFunctionByName("test2")[0]);
     }
 }
 

@@ -22,6 +22,7 @@ namespace kr1v::dwarf {
     const function EMPTY_FUNC = {};
 
     function getFunctionByMangled(std::string mangled);
+    function getFunctionByAddress(unsigned long address);
     // if size > 1 functions will have different arguments
     std::vector<function> getFunctionByName(std::string namespace_name);
     std::vector<function> getFunctionByName(std::string namespace_, std::string name);
